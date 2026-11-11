@@ -1,0 +1,143 @@
+﻿@page "/"
+@using SearchNarutoAPI.Models
+@using SearchNarutoAPI.Services
+@inject NarutoApiService NarutoService
+
+<PageTitle>Search Naruto API</PageTitle>
+
+<div class="container my-4">
+    <h1 class="text-center mb-4">Dattebayo API - Universo Naruto</h1>
+
+    <!-- Campo de Busca -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-6 d-flex gap-2">
+            <input @bind="SearchTerm" 
+                   @bind:event="oninput" 
+                   @onkeyup="HandleKeyUp"
+                   class="form-control" 
+                   placeholder="Buscar personagem por nome..." />
+            <button class="btn btn-primary" @onclick="LoadCharacters">Buscar</button>
+        </div>
+    </div>
+
+    <!-- Feedback de Carregamento -->
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border" role="status"></div>
+            <p>Carregando personagens...</p>
+        </div>
+    }
+    else if (characters == null || !characters.Any())
+    {
+        <div class="alert alert-warning text-center">
+            Nenhum personagem encontrado.
+        </div>
+    }
+    else
+    {
+        <!-- Grid de Personagens -->
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            @foreach (var character in characters)
+            {
+                <div class="col">
+                    <div class="card h-100 shadow-sm">
+                        <!-- Imagem (Exibe a primeira, se existir) -->
+                        @if (character.Images != null && character.Images.Any())
+                        {
+                            <img src="@character.Images.First()" class="card-img-top" alt="@character.Name" style="height: 250px; object-fit: cover;" />
+                        }
+                        else
+                        {
+                            <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center" style="height: 250px;">
+                                <span class="text-white">Sem Imagem</span>
+                            </div>
+                        }
+
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold">@character.Name</h5>
+                            
+                            <!-- Clã -->
+                            <p class="card-text mb-1">
+                                <strong>Clã/Afiliação:</strong> @(string.IsNullOrWhiteSpace(character.Personal?.Clan) ? "Desconhecido" : character.Personal.Clan)
+                            </p>
+
+                            <!-- Patente (Rank) -->
+                            <p class="card-text mb-1">
+                                <strong>Rank (Patente Ninja):</strong>
+                                @if (character.Rank?.NinjaRank != null && character.Rank.NinjaRank.Any())
+                                {
+                                    @string.Join(" / ", character.Rank.NinjaRank.Values)
+                                }
+                                else
+                                {
+                                    <span>N/A</span>
+                                }
+                            </p>
+
+                            <!-- Lista de Jutsus -->
+                            <div class="mt-3">
+                                <strong>Jutsus (Top 3):</strong>
+                                @if (character.Jutsu != null && character.Jutsu.Any())
+                                {
+                                    <ul class="mb-0" style="font-size: 0.9rem;">
+                                        @foreach (var jutsu in character.Jutsu.Take(3))
+                                        {
+                                            <li>@jutsu</li>
+                                        }
+                                        @if (character.Jutsu.Count > 3)
+                                        {
+                                            <li class="text-muted">+ @(character.Jutsu.Count - 3) outros...</li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <span class="d-block" style="font-size: 0.9rem;">Nenhum jutsu listado.</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<Character>? characters;
+    private bool isLoading = true;
+    private string SearchTerm = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCharacters();
+    }
+
+    private async Task LoadCharacters()
+    {
+        isLoading = true;
+        try
+        {
+            var response = await NarutoService.GetCharactersAsync(SearchTerm);
+            characters = response?.Characters ?? new List<Character>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao buscar dados: {ex.Message}");
+            characters = new List<Character>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await LoadCharacters();
+        }
+    }
+}
